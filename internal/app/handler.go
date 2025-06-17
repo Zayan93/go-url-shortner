@@ -47,11 +47,8 @@ func GetPage(res http.ResponseWriter, req *http.Request) {
 
 func PostPage(res http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
-		data, err := io.ReadAll(req.Body)
-		if err != nil || len(data) == 0 {
-			http.Error(res, "bad request", http.StatusBadRequest)
-			return
-		}
+		data, _ := io.ReadAll(req.Body)
+
 		defer req.Body.Close()
 
 		originalURL := strings.TrimSpace(string(data))
@@ -59,10 +56,6 @@ func PostPage(res http.ResponseWriter, req *http.Request) {
 
 		store[id] = originalURL
 
-		if req.Header.Get("Content-Type") != "text/plain" {
-			http.Error(res, "invalid content type", http.StatusBadRequest)
-			return
-		}
 		shortURL := fmt.Sprintf("http://%s/%s", req.Host, id)
 		res.Header().Set("Content-Type", "text/plain")
 		res.Header().Set("Content-Length", strconv.Itoa(len(shortURL)))
