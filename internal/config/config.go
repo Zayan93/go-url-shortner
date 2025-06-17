@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"os"
 )
 
 type Config struct {
@@ -11,8 +12,21 @@ type Config struct {
 
 // New создает и инициализирует конфигурацию из флагов командной строки
 func New() *Config {
-	addr := flag.String("a", "localhost:8080", "HTTP server address")
-	baseURL := flag.String("b", "http://localhost:8080", "Base URL for short links")
+	defaultAddress := "localhost:8080"
+	defaultBaseURL := "http://localhost:8080"
+
+	envAddress := os.Getenv("SERVER_ADDRESS")
+	envBaseURL := os.Getenv("BASE_URL")
+
+	if envAddress == "" {
+		envAddress = defaultAddress
+	}
+	if envBaseURL == "" {
+		envBaseURL = defaultBaseURL
+	}
+
+	addr := flag.String("a", envAddress, "HTTP server address")
+	baseURL := flag.String("b", envBaseURL, "Base URL for short links")
 	flag.Parse()
 
 	return &Config{
