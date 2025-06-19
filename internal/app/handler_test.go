@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go-url-shortner/internal/store"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -34,12 +35,15 @@ func TestPostPage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			storage := store.NewInMemoryStorage()
+			handler := NewHandler(storage, "http://localhost:8080")
+
 			body := strings.NewReader(tt.requestURL)
 			request := httptest.NewRequest(http.MethodPost, "/", body)
 			request.Host = "localhost:8080"
 			request.Header.Set("Content-Type", "text/plain")
 			w := httptest.NewRecorder()
-			PostPage(w, request)
+			handler.PostPage(w, request)
 			res := w.Result()
 			// проверяем код ответа
 			assert.Equal(t, tt.want.code, res.StatusCode)
@@ -82,12 +86,15 @@ func TestGetPage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Шаг 1 для начала POST запросом созданим тест данные
+			storage := store.NewInMemoryStorage()
+			handler := NewHandler(storage, "http://localhost:8080")
+
 			body := strings.NewReader(tt.requestURL)
 			postRequest := httptest.NewRequest(http.MethodPost, "/", body)
 			postRequest.Host = "localhost:8080"
 			postRequest.Header.Set("Content-Type", "text/plain")
 			postWriter := httptest.NewRecorder()
-			PostPage(postWriter, postRequest)
+			handler.PostPage(postWriter, postRequest)
 
 			// Получаем id из ответа
 			postRes := postWriter.Result()
@@ -107,7 +114,7 @@ func TestGetPage(t *testing.T) {
 			getRequest.Header.Set("Content-Type", tt.contentType)
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
-			GetPage(w, getRequest)
+			handler.GetPage(w, getRequest)
 
 			res := w.Result()
 			// проверяем код ответа
