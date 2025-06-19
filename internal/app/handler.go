@@ -65,7 +65,7 @@ func (h *Handler) PostPage(res http.ResponseWriter, req *http.Request) {
 
 		h.Storage.Store(id, originalURL)
 
-		shortURL := fmt.Sprintf("http://%s/%s", h.BaseURL, id)
+		shortURL := fmt.Sprintf("%s/%s", h.BaseURL, id)
 		res.Header().Set("Content-Type", "text/plain")
 		res.Header().Set("Content-Length", strconv.Itoa(len(shortURL)))
 		res.WriteHeader(http.StatusCreated)
