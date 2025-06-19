@@ -4,15 +4,24 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"go-url-shortner/internal/store"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 )
 
-var (
-	store = make(map[string]string)
-)
+func NewHandler(s store.URLStorage, baseURL string) *Handler {
+	return &Handler{
+		Storage: s,
+		BaseURL: baseURL,
+	}
+}
+
+type Handler struct {
+	Storage store.URLStorage
+	BaseURL string
+}
 
 func generateID() string {
 	b := make([]byte, 6) // 6 байт = ~8 символов base64
@@ -23,7 +32,7 @@ func generateID() string {
 	return base64.URLEncoding.EncodeToString(b)
 }
 
-func GetPage(res http.ResponseWriter, req *http.Request) {
+func (h *Handler) GetPage(res http.ResponseWriter, req *http.Request) {
 
 	if req.Method != http.MethodGet {
 		http.Error(res, "bad request", http.StatusBadRequest)
@@ -35,7 +44,7 @@ func GetPage(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	originalURL, found := store[id]
+	originalURL, found := h.Storage.Get(id)
 	if !found {
 		http.Error(res, "not found", http.StatusBadRequest)
 		return
@@ -45,7 +54,7 @@ func GetPage(res http.ResponseWriter, req *http.Request) {
 
 }
 
-func PostPage(res http.ResponseWriter, req *http.Request) {
+func (h *Handler) PostPage(res http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
 		data, _ := io.ReadAll(req.Body)
 
@@ -54,9 +63,9 @@ func PostPage(res http.ResponseWriter, req *http.Request) {
 		originalURL := strings.TrimSpace(string(data))
 		id := generateID()
 
-		store[id] = originalURL
+		h.Storage.Store(id, originalURL)
 
-		shortURL := fmt.Sprintf("http://%s/%s", req.Host, id)
+		shortURL := fmt.Sprintf("http://%s/%s", h.BaseURL, id)
 		res.Header().Set("Content-Type", "text/plain")
 		res.Header().Set("Content-Length", strconv.Itoa(len(shortURL)))
 		res.WriteHeader(http.StatusCreated)
