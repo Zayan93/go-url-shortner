@@ -19,12 +19,9 @@ func NewHandler(s store.URLStorage, baseURL string) *Handler {
 	}
 }
 
-type UrlResponse struct {
-	Result string `json:"result"`
-}
-
-type UrlRequest struct {
-	URL string `json:"url"`
+type URLResponse struct {
+	ShortURL    string `json:"result,omitempty"` // omitempty чтобы пропускать незаполненные
+	OriginalURL string `json:"url,omitempty"`    // будет в запросе
 }
 
 type Handler struct {
@@ -65,7 +62,7 @@ func (h *Handler) GetPage(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) PostShorten(res http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
-		var requestBody UrlRequest
+		var requestBody URLResponse
 
 		// Читаем тело запроса в буфер
 		err := json.NewDecoder(req.Body).Decode(&requestBody)
@@ -75,7 +72,7 @@ func (h *Handler) PostShorten(res http.ResponseWriter, req *http.Request) {
 		}
 		defer req.Body.Close()
 
-		originalURL := requestBody.URL
+		originalURL := requestBody.OriginalURL
 
 		id := generateID()
 
@@ -83,7 +80,7 @@ func (h *Handler) PostShorten(res http.ResponseWriter, req *http.Request) {
 
 		shortURL := fmt.Sprintf("%s/%s", h.BaseURL, id)
 
-		response := UrlResponse{Result: shortURL}
+		response := URLResponse{ShortURL: shortURL}
 
 		// Сереализуем обратно ответ
 
