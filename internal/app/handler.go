@@ -24,7 +24,7 @@ type UrlResponse struct {
 }
 
 type UrlRequest struct {
-	Url string `json:"url"`
+	URL string `json:"url"`
 }
 
 type Handler struct {
@@ -75,7 +75,7 @@ func (h *Handler) PostShorten(res http.ResponseWriter, req *http.Request) {
 		}
 		defer req.Body.Close()
 
-		originalURL := requestBody.Url
+		originalURL := requestBody.URL
 
 		id := generateID()
 
