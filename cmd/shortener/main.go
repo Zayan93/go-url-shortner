@@ -32,9 +32,10 @@ func main() {
 	r.Use(logger.WithLogging)
 
 	r.Post("/", handler.PostPage)
+	r.Post("/api/shorten", handler.PostShorten)
 	r.Get("/{id}", handler.GetPage)
 
-	logger.Log.Debug("Running server", zap.String("address", cfg.Address))
+	logger.Log.Info("Running server", zap.String("address", cfg.Address))
 
 	// Используем стандартный log тк пишет сразу в stderr и завершает программу
 	log.Fatal(http.ListenAndServe(cfg.Address, r))
