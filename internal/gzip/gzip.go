@@ -2,6 +2,7 @@ package gzip
 
 import (
 	"compress/gzip"
+	"go-url-shortner/internal/logger"
 	"io"
 	"net/http"
 	"strings"
@@ -25,7 +26,7 @@ func (c *compressWriter) Write(p []byte) (int, error) {
 
 // WriteHeader добавляем установку статуса
 func (c *compressWriter) WriteHeader(statusCode int) {
-	if statusCode < 300 {
+	if statusCode < 308 {
 		c.w.Header().Set("Content-Encoding", "gzip")
 	}
 	c.w.WriteHeader(statusCode)
@@ -76,31 +77,41 @@ func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 
 func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Log.Info("GzipMiddleware enabled")
+		ow := w
 		// Декомпрессия запроса, если клиент прислал gzip
-		if strings.Contains(r.Header.Get("Content-Type"), "application/json") || strings.Contains(r.Header.Get("Content-Type"), "text/html") {
-			if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
-				cr, err := newCompressReader(r.Body)
-				if err != nil {
-					http.Error(w, "Failed to decompress request body", http.StatusBadRequest)
-					return
-				}
-				defer cr.Close()
-				r.Body = cr
-			}
-		}
-
-		// Добавляем Vary заголовок тк сервер может возвразать разные ответы
-		w.Header().Add("Vary", "Accept-Encoding")
 
 		// Проверка, поддерживает ли клиент gzip
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+		if supportsGzip {
+			// оборачиваем оригинальный http.ResponseWriter новым с поддержкой сжатия
 			cw := newCompressWriter(w)
-			w = cw // заменяем writer
+			// меняем оригинальный http.ResponseWriter на новый
+			ow = cw
+			// не забываем отправить клиенту все сжатые данные после завершения middleware
 			defer cw.Close()
+			logger.Log.Info("comress writer enabled")
+		}
+
+		contentEncoding := r.Header.Get("Content-Encoding")
+		sendsGzip := strings.Contains(contentEncoding, "gzip")
+
+		if sendsGzip {
+			// оборачиваем тело запроса в io.Reader с поддержкой декомпрессии
+			cr, err := newCompressReader(r.Body)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			// меняем тело запроса на новое
+			r.Body = cr
+			defer cr.Close()
+			logger.Log.Info("gzip enabled")
 		}
 
 		// передаём управление хендлеру
-		h.ServeHTTP(w, r)
+		h.ServeHTTP(ow, r)
 	})
 
 }
