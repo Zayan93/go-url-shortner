@@ -55,7 +55,7 @@ func (h *Handler) GetPage(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "not found", http.StatusBadRequest)
 		return
 	}
-
+	res.Header().Del("Content-Encoding")
 	http.Redirect(res, req, originalURL, http.StatusTemporaryRedirect)
 
 }

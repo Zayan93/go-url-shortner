@@ -2,7 +2,6 @@ package gzip
 
 import (
 	"compress/gzip"
-	"io"
 	"net/http"
 	"strings"
 )
@@ -36,68 +35,34 @@ func (c *compressWriter) Close() error {
 	return c.zw.Close()
 }
 
-// newCompressWriter основной интерфейс который служит заменой ResponseWriter
-func newCompressWriter(w http.ResponseWriter) *compressWriter {
-	return &compressWriter{
-		w:  w,
-		zw: gzip.NewWriter(w),
-	}
-}
-
-// compressReader реализует интерфейс io.ReadCloser и позволяет прозрачно для сервера
-// декомпрессировать получаемые от клиента данные
-type compressReader struct {
-	r  io.ReadCloser
-	zr *gzip.Reader
-}
-
-func (c compressReader) Read(p []byte) (n int, err error) {
-	return c.zr.Read(p)
-}
-
-func (c *compressReader) Close() error {
-	if err := c.r.Close(); err != nil {
-		return err
-	}
-	return c.zr.Close()
-}
-
-func newCompressReader(r io.ReadCloser) (*compressReader, error) {
-	zr, err := gzip.NewReader(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return &compressReader{
-		r:  r,
-		zr: zr,
-	}, nil
-}
-
-func GzipMiddleware(h http.Handler) http.Handler {
+func GzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Декомпрессия запроса, если клиент прислал gzip
-		if strings.Contains(r.Header.Get("Content-Type"), "application/json") || strings.Contains(r.Header.Get("Content-Type"), "text/html") {
-			if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
-				cr, err := newCompressReader(r.Body)
-				if err != nil {
-					http.Error(w, "Failed to decompress request body", http.StatusBadRequest)
-					return
-				}
-				defer cr.Close()
-				r.Body = cr
+		// Распаковка тела запроса, если клиент отправил его с Content-Encoding: gzip
+		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+			gr, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, "Failed to decompress request body", http.StatusBadRequest)
+				return
 			}
+			defer gr.Close()
+			r.Body = gr
 		}
 
-		// Проверка, поддерживает ли клиент gzip
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			cw := newCompressWriter(w)
-			w = cw // заменяем writer
-			defer cw.Close()
+		// Проверка: поддерживает ли клиент gzip
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			next.ServeHTTP(w, r)
+			return
 		}
 
-		// передаём управление хендлеру
-		h.ServeHTTP(w, r)
+		// Подготовка gzip.Writer и gzipResponseWriter
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+
+		grw := &compressWriter{
+			w:  w,
+			zw: gz,
+		}
+
+		next.ServeHTTP(grw, r)
 	})
-
 }
