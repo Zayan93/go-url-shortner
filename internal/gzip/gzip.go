@@ -89,9 +89,6 @@ func GzipMiddleware(h http.Handler) http.Handler {
 			}
 		}
 
-		// Добавляем Vary заголовок тк сервер может возвразать разные ответы
-		w.Header().Add("Vary", "Accept-Encoding")
-
 		// Проверка, поддерживает ли клиент gzip
 		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			cw := newCompressWriter(w)
