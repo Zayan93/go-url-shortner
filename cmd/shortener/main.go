@@ -29,6 +29,7 @@ func main() {
 	handler := app.NewHandler(storage, cfg.BaseURL)
 
 	r := chi.NewRouter()
+	r.Use(GzipMiddleware)
 	r.Use(logger.WithLogging)
 
 	r.Post("/", handler.PostPage)
