@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/go-chi/chi/v5"
 	"go-url-shortner/internal/app"
+	"go-url-shortner/internal/compressor"
 	"go-url-shortner/internal/config"
-	"go-url-shortner/internal/gzip"
 	"go-url-shortner/internal/logger"
 	"go-url-shortner/internal/store"
 	"go.uber.org/zap"
@@ -30,7 +30,7 @@ func main() {
 	handler := app.NewHandler(storage, cfg.BaseURL)
 
 	r := chi.NewRouter()
-	r.Use(gzip.GzipMiddleware)
+	r.Use(compressor.GzipMiddleware)
 	r.Use(logger.WithLogging)
 
 	r.Post("/", handler.PostPage)
