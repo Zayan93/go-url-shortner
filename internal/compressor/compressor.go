@@ -10,39 +10,58 @@ import (
 
 // создаем новый Writer, с добавлением функциональности компрессии
 type compressWriter struct {
-	w       http.ResponseWriter
-	zw      *gzip.Writer
-	started bool
+	w             http.ResponseWriter
+	zw            *gzip.Writer
+	statusCode    int
+	started       bool
+	shouldZip     bool
+	headerWritten bool
 }
 
-// Header добавляет к новой писалке методы необходимые  для его использования вместо оригинального
 func (c *compressWriter) Header() http.Header {
 	return c.w.Header()
 }
 
-// Write непосредственно меняет писалку на писалку с компрессией
+func (c *compressWriter) WriteHeader(statusCode int) {
+	if c.headerWritten {
+		return
+	}
+	c.statusCode = statusCode
+	c.headerWritten = true
+	// Не пишем пока в оригинальный w — отложим до Write()
+}
+
 func (c *compressWriter) Write(p []byte) (int, error) {
 	if !c.started {
+		c.started = true
+
+		// По Content-Type решаем, надо ли сжимать
 		ct := c.w.Header().Get("Content-Type")
 		if strings.HasPrefix(ct, "application/json") || strings.HasPrefix(ct, "text/html") {
-			c.w.Header().Set("Content-Encoding", "gzip")
+			c.shouldZip = true
 			c.zw = gzip.NewWriter(c.w)
-		} else {
-			return c.w.Write(p) // просто пишем без сжатия
+			c.w.Header().Set("Content-Encoding", "gzip")
 		}
-		c.started = true
+
+		// Отправим отложенный статус
+		if c.statusCode != 0 {
+			c.w.WriteHeader(c.statusCode)
+		} else {
+			c.w.WriteHeader(http.StatusOK)
+		}
 	}
-	return c.zw.Write(p)
+
+	if c.shouldZip {
+		return c.zw.Write(p)
+	}
+	return c.w.Write(p)
 }
 
-// WriteHeader добавляем установку статуса
-func (c *compressWriter) WriteHeader(statusCode int) {
-	c.w.WriteHeader(statusCode)
-}
-
-// Close закрывает gzip.Writer и досылает все данные из буфера.
 func (c *compressWriter) Close() error {
-	return c.zw.Close()
+	if c.shouldZip && c.zw != nil {
+		return c.zw.Close()
+	}
+	return nil
 }
 
 // newCompressWriter основной интерфейс который служит заменой ResponseWriter
