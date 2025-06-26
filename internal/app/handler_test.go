@@ -162,6 +162,7 @@ func TestGetPage(t *testing.T) {
 			// Шаг 1 для начала POST запросом созданим тест данные
 			storageName := "storage3.txt"
 			storage, err := store.NewFileStorage(storageName)
+			require.NoError(t, err)
 
 			handler := NewHandler(storage, "http://localhost:8080")
 
