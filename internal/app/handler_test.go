@@ -1,6 +1,8 @@
 package app
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -8,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -35,7 +38,8 @@ func TestPostPage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			storage := store.NewInMemoryStorage()
+			storageName := "storage1.txt"
+			storage, _ := store.NewFileStorage(storageName)
 			handler := NewHandler(storage, "http://localhost:8080")
 
 			body := strings.NewReader(tt.requestURL)
@@ -54,6 +58,76 @@ func TestPostPage(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, string(resBody), "http://localhost:8080/")
 			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
+			_ = storage.Close()
+			if err := os.Remove(storageName); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestHandler_PostShorten(t *testing.T) {
+	type want struct {
+		code        int
+		response    string
+		contentType string
+	}
+	type reqBody struct {
+		URL string `json:"url"`
+	}
+	tests := []struct {
+		name       string
+		requestURL string
+		body       reqBody
+		want       want
+	}{
+		{
+			name: "positive test shorten #1",
+			body: reqBody{URL: "https://practicum.yandex.ru/"},
+			want: want{
+				code:        http.StatusCreated,
+				response:    `{"status":"Created"}`,
+				contentType: "application/json",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			storageName := "storage2.txt"
+			storage, _ := store.NewFileStorage(storageName)
+			handler := NewHandler(storage, "http://localhost:8080")
+
+			buf := new(bytes.Buffer)
+			err := json.NewEncoder(buf).Encode(tt.body)
+			require.NoError(t, err)
+
+			request := httptest.NewRequest(http.MethodPost, "/api/shorten", buf)
+			request.Host = "localhost:8080"
+			request.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+			handler.PostShorten(w, request)
+			res := w.Result()
+			defer res.Body.Close()
+			// проверяем код ответа
+			assert.Equal(t, tt.want.code, res.StatusCode)
+			// получаем и проверяем тело запроса
+
+			resBody, err := io.ReadAll(res.Body)
+
+			require.NoError(t, err)
+
+			var responseBody struct {
+				Result string `json:"result"`
+			}
+			err = json.Unmarshal(resBody, &responseBody)
+			require.NoError(t, err)
+
+			assert.True(t, strings.HasPrefix(responseBody.Result, "http://localhost:8080/"))
+			_ = storage.Close()
+			if err := os.Remove(storageName); err != nil {
+				t.Error(err)
+			}
 		})
 	}
 }
@@ -86,7 +160,10 @@ func TestGetPage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Шаг 1 для начала POST запросом созданим тест данные
-			storage := store.NewInMemoryStorage()
+			storageName := "storage3.txt"
+			storage, err := store.NewFileStorage(storageName)
+			require.NoError(t, err)
+
 			handler := NewHandler(storage, "http://localhost:8080")
 
 			body := strings.NewReader(tt.requestURL)
@@ -123,6 +200,12 @@ func TestGetPage(t *testing.T) {
 			defer res.Body.Close()
 
 			assert.Equal(t, tt.requestURL, res.Header.Get("Location"))
+			// удалим файл settings.json
+			_ = storage.Close()
+			if err := os.Remove(storageName); err != nil {
+				t.Error(err)
+			}
+
 		})
 	}
 }

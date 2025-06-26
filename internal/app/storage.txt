@@ -1,0 +1,6 @@
+{"uuid":0,"short_url":"zWfA3cJW","original_url":"https://practicum.yandex.ru/"}
+{"uuid":0,"short_url":"WJjlRySJ","original_url":"https://practicum.yandex.ru/"}
+{"uuid":0,"short_url":"pSQqXF5F","original_url":"https://practicum.yandex.ru/"}
+{"uuid":0,"short_url":"V8jMgYV9","original_url":"https://practicum.yandex.ru/"}
+{"uuid":0,"short_url":"GC-TfQT7","original_url":"https://practicum.yandex.ru/"}
+{"uuid":0,"short_url":"Jk48WYSP","original_url":"https://practicum.yandex.ru/"}
