@@ -24,8 +24,8 @@ func (s *FileStorage) Store(id, url string) error {
 	defer s.mu.Unlock()
 
 	event := &Event{
-		ShortUrl:    id,
-		OriginalUrl: url,
+		ShortURL:    id,
+		OriginalURL: url,
 	}
 	return s.producer.WriteEvent(event)
 }
@@ -48,8 +48,8 @@ func (s *FileStorage) Get(id string) (string, bool) {
 		if event == nil {
 			break
 		}
-		if event.ShortUrl == id {
-			return event.OriginalUrl, true
+		if event.ShortURL == id {
+			return event.OriginalURL, true
 		}
 	}
 	return "", false
