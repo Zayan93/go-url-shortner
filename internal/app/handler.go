@@ -3,6 +3,7 @@ package app
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"go-url-shortner/internal/store"
 	"io"
@@ -16,6 +17,11 @@ func NewHandler(s store.URLStorage, baseURL string) *Handler {
 		Storage: s,
 		BaseURL: baseURL,
 	}
+}
+
+type URLResponse struct {
+	ShortURL    string `json:"result,omitempty"` // omitempty чтобы пропускать незаполненные
+	OriginalURL string `json:"url,omitempty"`    // будет в запросе
 }
 
 type Handler struct {
@@ -49,9 +55,44 @@ func (h *Handler) GetPage(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "not found", http.StatusBadRequest)
 		return
 	}
-
+	res.Header().Del("Content-Encoding")
 	http.Redirect(res, req, originalURL, http.StatusTemporaryRedirect)
 
+}
+
+func (h *Handler) PostShorten(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "GET" {
+		var requestBody URLResponse
+
+		// Читаем тело запроса в буфер
+		err := json.NewDecoder(req.Body).Decode(&requestBody)
+		if err != nil {
+			http.Error(res, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		defer req.Body.Close()
+
+		originalURL := requestBody.OriginalURL
+
+		id := generateID()
+
+		h.Storage.Store(id, originalURL)
+
+		shortURL := fmt.Sprintf("%s/%s", h.BaseURL, id)
+
+		response := URLResponse{ShortURL: shortURL}
+
+		// Сереализуем обратно ответ
+
+		res.Header().Set("Content-Type", "application/json")
+		res.WriteHeader(http.StatusCreated)
+		if err := json.NewEncoder(res).Encode(response); err != nil {
+			http.Error(res, "failed to encode response", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		res.WriteHeader(http.StatusBadRequest)
+	}
 }
 
 func (h *Handler) PostPage(res http.ResponseWriter, req *http.Request) {
