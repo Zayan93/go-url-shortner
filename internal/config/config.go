@@ -17,7 +17,7 @@ func New() *Config {
 	defaultAddress := "localhost:8080"
 	defaultBaseURL := "http://localhost:8080"
 	defaultLogLevel := "info"
-	defaultFileStoragePath := "store/storage.txt"
+	defaultFileStoragePath := "./storage.txt"
 
 	envAddress := os.Getenv("SERVER_ADDRESS")
 	envBaseURL := os.Getenv("BASE_URL")

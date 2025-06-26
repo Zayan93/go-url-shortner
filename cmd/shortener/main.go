@@ -24,7 +24,10 @@ func main() {
 	defer logger.Log.Sync()
 
 	// Storage теперь не глобальная переменная
-	storage := store.NewInMemoryStorage()
+	storage, err := store.NewFileStorage(cfg.FileStoragePath)
+	if err != nil {
+		log.Fatalf("failed to initialize file: %v", err)
+	}
 
 	// Baseurl передаю через dependency injection в хендлеры
 	handler := app.NewHandler(storage, cfg.BaseURL)
