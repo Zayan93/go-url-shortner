@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -37,7 +38,8 @@ func TestPostPage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			storage := store.NewInMemoryStorage()
+			storageName := "storage1.txt"
+			storage, _ := store.NewFileStorage(storageName)
 			handler := NewHandler(storage, "http://localhost:8080")
 
 			body := strings.NewReader(tt.requestURL)
@@ -56,6 +58,10 @@ func TestPostPage(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, string(resBody), "http://localhost:8080/")
 			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
+			_ = storage.Close()
+			if err := os.Remove(storageName); err != nil {
+				t.Error(err)
+			}
 		})
 	}
 }
@@ -87,7 +93,8 @@ func TestHandler_PostShorten(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			storage := store.NewInMemoryStorage()
+			storageName := "storage2.txt"
+			storage, _ := store.NewFileStorage(storageName)
 			handler := NewHandler(storage, "http://localhost:8080")
 
 			buf := new(bytes.Buffer)
@@ -117,6 +124,10 @@ func TestHandler_PostShorten(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.True(t, strings.HasPrefix(responseBody.Result, "http://localhost:8080/"))
+			_ = storage.Close()
+			if err := os.Remove(storageName); err != nil {
+				t.Error(err)
+			}
 		})
 	}
 }
@@ -149,7 +160,9 @@ func TestGetPage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Шаг 1 для начала POST запросом созданим тест данные
-			storage := store.NewInMemoryStorage()
+			storageName := "storage3.txt"
+			storage, err := store.NewFileStorage(storageName)
+
 			handler := NewHandler(storage, "http://localhost:8080")
 
 			body := strings.NewReader(tt.requestURL)
@@ -186,6 +199,12 @@ func TestGetPage(t *testing.T) {
 			defer res.Body.Close()
 
 			assert.Equal(t, tt.requestURL, res.Header.Get("Location"))
+			// удалим файл settings.json
+			_ = storage.Close()
+			if err := os.Remove(storageName); err != nil {
+				t.Error(err)
+			}
+
 		})
 	}
 }
