@@ -8,6 +8,8 @@ type FileStorage struct {
 	mu       sync.Mutex
 }
 
+var _ URLStorage = (*FileStorage)(nil)
+
 func NewFileStorage(filename string) (*FileStorage, error) {
 	prod, err := NewProducer(filename)
 	if err != nil {

@@ -78,7 +78,10 @@ func (h *Handler) PostShorten(res http.ResponseWriter, req *http.Request) {
 
 		id := generateID()
 
-		h.Storage.Store(id, originalURL)
+		if err := h.Storage.Store(id, originalURL); err != nil {
+			http.Error(res, "failed to store url", http.StatusInternalServerError)
+			return
+		}
 
 		shortURL := fmt.Sprintf("%s/%s", h.BaseURL, id)
 
@@ -106,7 +109,10 @@ func (h *Handler) PostPage(res http.ResponseWriter, req *http.Request) {
 		originalURL := strings.TrimSpace(string(data))
 		id := generateID()
 
-		h.Storage.Store(id, originalURL)
+		if err := h.Storage.Store(id, originalURL); err != nil {
+			http.Error(res, "failed to store url", http.StatusInternalServerError)
+			return
+		}
 
 		shortURL := fmt.Sprintf("%s/%s", h.BaseURL, id)
 		res.Header().Set("Content-Type", "text/plain")

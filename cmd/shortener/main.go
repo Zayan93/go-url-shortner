@@ -26,21 +26,32 @@ func main() {
 
 	defer logger.Log.Sync()
 
-	// Подключаемся к базе данных
-	db, err := sql.Open("pgx", cfg.DatabaseDSN)
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
+	var storage store.URLStorage
+	var sqlStorage store.SQLPinger
 
-	logger.Log.Info("Connected to PSQL server")
-
-	// Создаем SQLStorage для ping
-	sqlStorage := store.NewSQLStorage(db)
-
-	storage, err := store.NewFileStorage(cfg.FileStoragePath)
-	if err != nil {
-		log.Fatalf("failed to initialize file: %v", err)
+	if cfg.DatabaseDSN != "" {
+		db, err := sql.Open("pgx", cfg.DatabaseDSN)
+		if err != nil {
+			log.Fatalf("failed to connect to database: %v", err)
+		}
+		defer db.Close()
+		logger.Log.Info("Connected to PSQL server")
+		psqlStorage, err := store.NewSQLStorage(db)
+		if err != nil {
+			log.Fatalf("failed to initialize postgres storage: %v", err)
+		}
+		storage = psqlStorage
+		sqlStorage = psqlStorage
+	} else if cfg.FileStoragePath != "" {
+		fileStorage, err := store.NewFileStorage(cfg.FileStoragePath)
+		if err != nil {
+			log.Fatalf("failed to initialize file storage: %v", err)
+		}
+		storage = fileStorage
+		sqlStorage = nil
+	} else {
+		storage = store.NewInMemoryStorage()
+		sqlStorage = nil
 	}
 
 	// Baseurl передаю через dependency injection в хендлеры
