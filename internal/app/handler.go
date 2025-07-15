@@ -12,10 +12,11 @@ import (
 	"strings"
 )
 
-func NewHandler(s store.URLStorage, baseURL string) *Handler {
+func NewHandler(s store.URLStorage, baseURL string, sqlStorage *store.SQLStorage) *Handler {
 	return &Handler{
-		Storage: s,
-		BaseURL: baseURL,
+		Storage:    s,
+		BaseURL:    baseURL,
+		SQLStorage: sqlStorage,
 	}
 }
 
@@ -25,8 +26,9 @@ type URLResponse struct {
 }
 
 type Handler struct {
-	Storage store.URLStorage
-	BaseURL string
+	Storage    store.URLStorage
+	BaseURL    string
+	SQLStorage *store.SQLStorage // для проверки ping
 }
 
 func generateID() string {
@@ -114,4 +116,18 @@ func (h *Handler) PostPage(res http.ResponseWriter, req *http.Request) {
 	} else {
 		res.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+// ServePing проверяет соединение с базой данных
+func (h *Handler) ServePing(res http.ResponseWriter, req *http.Request) {
+	if h.SQLStorage == nil {
+		http.Error(res, "no database configured", http.StatusInternalServerError)
+		return
+	}
+	if err := h.SQLStorage.Ping(); err != nil {
+		http.Error(res, "db connection error", http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte("pong"))
 }

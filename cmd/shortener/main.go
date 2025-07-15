@@ -1,7 +1,10 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"go-url-shortner/internal/app"
 	"go-url-shortner/internal/compressor"
 	"go-url-shortner/internal/config"
@@ -16,6 +19,7 @@ func main() {
 
 	cfg := config.New()
 	flagLogLevel := cfg.LogLevel
+
 	if err := logger.Initialize(flagLogLevel); err != nil {
 		// Используем стандартный log на случай ошибки при ините нашего лога
 		log.Fatalf("failed to initialize logger: %v", err)
@@ -23,14 +27,27 @@ func main() {
 
 	defer logger.Log.Sync()
 
-	// Storage теперь не глобальная переменная
+	// Подключаемся к базе данных
+	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+		cfg.DatabaseDSN, cfg.DBUser, cfg.DBPassword, cfg.DBName)
+	db, err := sql.Open("pgx", ps)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	logger.Log.Info("Connected to PSQL server: host=localhost")
+
+	// Создаем SQLStorage для ping
+	sqlStorage := store.NewSQLStorage(db)
+
 	storage, err := store.NewFileStorage(cfg.FileStoragePath)
 	if err != nil {
 		log.Fatalf("failed to initialize file: %v", err)
 	}
 
 	// Baseurl передаю через dependency injection в хендлеры
-	handler := app.NewHandler(storage, cfg.BaseURL)
+	handler := app.NewHandler(storage, cfg.BaseURL, sqlStorage)
 
 	r := chi.NewRouter()
 	r.Use(compressor.GzipMiddleware)
@@ -39,6 +56,7 @@ func main() {
 	r.Post("/", handler.PostPage)
 	r.Post("/api/shorten", handler.PostShorten)
 	r.Get("/{id}", handler.GetPage)
+	r.Get("/ping", handler.ServePing)
 
 	logger.Log.Info("Running server", zap.String("address", cfg.Address))
 
