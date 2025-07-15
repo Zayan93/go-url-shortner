@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func NewHandler(s store.URLStorage, baseURL string, sqlStorage *store.SQLStorage) *Handler {
+func NewHandler(s store.URLStorage, baseURL string, sqlStorage store.SQLPinger) *Handler {
 	return &Handler{
 		Storage:    s,
 		BaseURL:    baseURL,
@@ -28,7 +28,7 @@ type URLResponse struct {
 type Handler struct {
 	Storage    store.URLStorage
 	BaseURL    string
-	SQLStorage *store.SQLStorage // для проверки ping
+	SQLStorage store.SQLPinger // интерфейс, а не *SQLStorage
 }
 
 func generateID() string {

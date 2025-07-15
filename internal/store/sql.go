@@ -5,7 +5,11 @@ import (
 )
 
 // SQLStorage реализует интерфейс для работы с SQL-базой
-// (расширяем по мере необходимости)
+
+type SQLPinger interface {
+	Ping() error
+}
+
 type SQLStorage struct {
 	DB *sql.DB
 }
@@ -18,4 +22,3 @@ func NewSQLStorage(db *sql.DB) *SQLStorage {
 func (s *SQLStorage) Ping() error {
 	return s.DB.Ping()
 }
-

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	mock_store "go-url-shortner/internal/mocks"
 	"go-url-shortner/internal/store"
 	"io"
 	"net/http"
@@ -40,7 +42,7 @@ func TestPostPage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			storageName := "storage1.txt"
 			storage, _ := store.NewFileStorage(storageName)
-			handler := NewHandler(storage, "http://localhost:8080")
+			handler := NewHandler(storage, "http://localhost:8080", nil)
 
 			body := strings.NewReader(tt.requestURL)
 			request := httptest.NewRequest(http.MethodPost, "/", body)
@@ -95,7 +97,7 @@ func TestHandler_PostShorten(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			storageName := "storage2.txt"
 			storage, _ := store.NewFileStorage(storageName)
-			handler := NewHandler(storage, "http://localhost:8080")
+			handler := NewHandler(storage, "http://localhost:8080", nil)
 
 			buf := new(bytes.Buffer)
 			err := json.NewEncoder(buf).Encode(tt.body)
@@ -164,7 +166,7 @@ func TestGetPage(t *testing.T) {
 			storage, err := store.NewFileStorage(storageName)
 			require.NoError(t, err)
 
-			handler := NewHandler(storage, "http://localhost:8080")
+			handler := NewHandler(storage, "http://localhost:8080", nil)
 
 			body := strings.NewReader(tt.requestURL)
 			postRequest := httptest.NewRequest(http.MethodPost, "/", body)
@@ -208,4 +210,44 @@ func TestGetPage(t *testing.T) {
 
 		})
 	}
+}
+
+func TestHandler_ServePing_OK(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockSQL := mock_store.NewMockSQLPinger(ctrl)
+	mockSQL.EXPECT().Ping().Return(nil)
+
+	handler := NewHandler(nil, "", mockSQL)
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServePing(w, req)
+	res := w.Result()
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+}
+
+func TestHandler_ServePing_DBError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockSQL := mock_store.NewMockSQLPinger(ctrl)
+	mockSQL.EXPECT().Ping().Return(fmt.Errorf("db error"))
+
+	handler := NewHandler(nil, "", mockSQL)
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServePing(w, req)
+	res := w.Result()
+	assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+}
+
+func TestHandler_ServePing_NoDB(t *testing.T) {
+	handler := NewHandler(nil, "", nil)
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServePing(w, req)
+	res := w.Result()
+	assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
 }
