@@ -25,7 +25,7 @@ func New() *Config {
 	defaultDBDSN := "localhost"
 	defaultDBName := "videos"
 	defaultDBUser := "postgres"
-	defaultDBPassword := "root"
+	defaultDBPassword := "fmx274TQVw111w111w"
 
 	envAddress := os.Getenv("SERVER_ADDRESS")
 	envBaseURL := os.Getenv("BASE_URL")

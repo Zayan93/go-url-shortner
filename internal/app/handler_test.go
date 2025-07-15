@@ -224,6 +224,7 @@ func TestHandler_ServePing_OK(t *testing.T) {
 
 	handler.ServePing(w, req)
 	res := w.Result()
+	defer res.Body.Close()
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
 
@@ -239,6 +240,7 @@ func TestHandler_ServePing_DBError(t *testing.T) {
 
 	handler.ServePing(w, req)
 	res := w.Result()
+	defer res.Body.Close()
 	assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
 }
 
@@ -249,5 +251,6 @@ func TestHandler_ServePing_NoDB(t *testing.T) {
 
 	handler.ServePing(w, req)
 	res := w.Result()
+	defer res.Body.Close()
 	assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
 }
