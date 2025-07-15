@@ -28,3 +28,13 @@ func (s *InMemoryStorage) Get(id string) (string, bool) {
 	url, exists := s.store[id]
 	return url, exists
 }
+
+// StoreBatch сохраняет множество сокращённых URL атомарно
+func (s *InMemoryStorage) StoreBatch(pairs map[string]string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, url := range pairs {
+		s.store[id] = url
+	}
+	return nil
+}

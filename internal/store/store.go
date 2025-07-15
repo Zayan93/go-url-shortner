@@ -9,9 +9,16 @@ import (
 type URLStorage interface {
 	Store(id, url string) error
 	Get(id string) (string, bool)
+	StoreBatch(pairs map[string]string) error
 }
 
 type Event struct {
+	UUID        uint   `json:"uuid"`
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
+type BatchEvent struct {
 	UUID        uint   `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
@@ -27,7 +34,6 @@ func NewProducer(filename string) (*Producer, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &Producer{file: file, writer: bufio.NewWriter(file)}, nil
 }
 
@@ -36,7 +42,6 @@ func (p *Producer) WriteEvent(event *Event) error {
 	if err != nil {
 		return err
 	}
-
 	if _, err := p.writer.Write(data); err != nil {
 		return err
 	}
@@ -62,6 +67,7 @@ func NewConsumer(filename string) (*Consumer, error) {
 	}
 	return &Consumer{file: file, scanner: bufio.NewScanner(file)}, nil
 }
+
 func (c *Consumer) Close() error {
 	return c.file.Close()
 }

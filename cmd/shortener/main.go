@@ -74,6 +74,7 @@ func main() {
 
 	r.Post("/", handler.PostPage)
 	r.Post("/api/shorten", handler.PostShorten)
+	r.Post("/api/shorten/batch", handler.PostShortenBatch)
 	r.Get("/{id}", handler.GetPage)
 	r.Get("/ping", handler.ServePing)
 

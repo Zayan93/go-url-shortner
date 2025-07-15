@@ -60,3 +60,19 @@ func (s *FileStorage) Get(id string) (string, bool) {
 func (s *FileStorage) Close() error {
 	return s.producer.Close()
 }
+
+// StoreBatch сохраняет множество сокращённых URL атомарно
+func (s *FileStorage) StoreBatch(pairs map[string]string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, url := range pairs {
+		event := &Event{
+			ShortURL:    id,
+			OriginalURL: url,
+		}
+		if err := s.producer.WriteEvent(event); err != nil {
+			return err
+		}
+	}
+	return nil
+}

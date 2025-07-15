@@ -31,6 +31,16 @@ type Handler struct {
 	SQLStorage store.SQLPinger // интерфейс, а не *SQLStorage
 }
 
+type BatchRequestItem struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type BatchResponseItem struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
 func generateID() string {
 	b := make([]byte, 6) // 6 байт = ~8 символов base64
 	_, err := rand.Read(b)
@@ -136,4 +146,46 @@ func (h *Handler) ServePing(res http.ResponseWriter, req *http.Request) {
 	}
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte("pong"))
+}
+
+func (h *Handler) PostShortenBatch(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(res, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var batch []BatchRequestItem
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&batch); err != nil {
+		http.Error(res, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if len(batch) == 0 {
+		http.Error(res, "empty batch", http.StatusBadRequest)
+		return
+	}
+
+	pairs := make(map[string]string, len(batch))
+	idToCorrelation := make(map[string]string, len(batch))
+	for _, item := range batch {
+		id := generateID()
+		pairs[id] = item.OriginalURL
+		idToCorrelation[id] = item.CorrelationID
+	}
+
+	if err := h.Storage.StoreBatch(pairs); err != nil {
+		http.Error(res, "failed to store batch", http.StatusInternalServerError)
+		return
+	}
+
+	response := make([]BatchResponseItem, 0, len(batch))
+	for id, _ := range pairs {
+		response = append(response, BatchResponseItem{
+			CorrelationID: idToCorrelation[id],
+			ShortURL:      fmt.Sprintf("%s/%s", h.BaseURL, id),
+		})
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+	json.NewEncoder(res).Encode(response)
 }

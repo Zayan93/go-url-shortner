@@ -60,3 +60,24 @@ func (s *SQLStorage) Get(id string) (string, bool) {
 func (s *SQLStorage) Ping() error {
 	return s.DB.Ping()
 }
+
+// StoreBatch сохраняет множество сокращённых URL в рамках одной транзакции
+func (s *SQLStorage) StoreBatch(pairs map[string]string) error {
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare(`INSERT INTO short_urls (short_id, original_url) VALUES ($1, $2) ON CONFLICT (short_id) DO NOTHING`)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	defer stmt.Close()
+	for id, url := range pairs {
+		if _, err := stmt.Exec(id, url); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
+}
