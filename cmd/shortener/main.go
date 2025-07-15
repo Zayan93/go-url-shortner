@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go-url-shortner/internal/app"
@@ -28,15 +27,13 @@ func main() {
 	defer logger.Log.Sync()
 
 	// Подключаемся к базе данных
-	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.DatabaseDSN, cfg.DBUser, cfg.DBPassword, cfg.DBName)
-	db, err := sql.Open("pgx", ps)
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
 
-	logger.Log.Info("Connected to PSQL server: host=localhost")
+	logger.Log.Info("Connected to PSQL server")
 
 	// Создаем SQLStorage для ping
 	sqlStorage := store.NewSQLStorage(db)

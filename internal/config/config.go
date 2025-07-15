@@ -11,9 +11,6 @@ type Config struct {
 	LogLevel        string // Уровень логирования
 	FileStoragePath string // путь до файла с данными
 	DatabaseDSN     string // подключение к базе данных (host)
-	DBName          string // название базы данных
-	DBUser          string // имя пользователя БД
-	DBPassword      string // пароль пользователя БД
 }
 
 // New создает и инициализирует конфигурацию из флагов командной строки
@@ -22,19 +19,13 @@ func New() *Config {
 	defaultBaseURL := "http://localhost:8080"
 	defaultLogLevel := "info"
 	defaultFileStoragePath := "./storage.txt"
-	defaultDBDSN := "localhost"
-	defaultDBName := "videos"
-	defaultDBUser := "postgres"
-	defaultDBPassword := "fmx274TQVw111w111w"
+	defaultDBDSN := "host=localhost user=postgres password=fmx274TQVw111w111w dbname=videos sslmode=disable"
 
 	envAddress := os.Getenv("SERVER_ADDRESS")
 	envBaseURL := os.Getenv("BASE_URL")
 	envLogLevel := os.Getenv("LOG_LEVEL")
 	envFileStoragePath := os.Getenv("FILE_STORAGE_PATH")
 	envSQLDBDSN := os.Getenv("DATABASE_DSN")
-	envDBName := os.Getenv("DB_NAME")
-	envDBUser := os.Getenv("DB_USER")
-	envDBPassword := os.Getenv("DB_PASSWORD")
 
 	if envAddress == "" {
 		envAddress = defaultAddress
@@ -51,24 +42,12 @@ func New() *Config {
 	if envSQLDBDSN == "" {
 		envSQLDBDSN = defaultDBDSN
 	}
-	if envDBName == "" {
-		envDBName = defaultDBName
-	}
-	if envDBUser == "" {
-		envDBUser = defaultDBUser
-	}
-	if envDBPassword == "" {
-		envDBPassword = defaultDBPassword
-	}
 
 	addr := flag.String("a", envAddress, "HTTP server address")
 	baseURL := flag.String("b", envBaseURL, "Base URL for short links")
 	logLevel := flag.String("l", envLogLevel, "Log level")
 	fileStoragePath := flag.String("f", envFileStoragePath, "File storage path")
 	databaseDSN := flag.String("d", envSQLDBDSN, "Database DSN for connection (host)")
-	dbName := flag.String("db-name", envDBName, "Database name")
-	dbUser := flag.String("db-user", envDBUser, "Database user")
-	dbPassword := flag.String("db-password", envDBPassword, "Database password")
 	flag.Parse()
 
 	return &Config{
@@ -77,8 +56,5 @@ func New() *Config {
 		LogLevel:        *logLevel,
 		FileStoragePath: *fileStoragePath,
 		DatabaseDSN:     *databaseDSN,
-		DBName:          *dbName,
-		DBUser:          *dbUser,
-		DBPassword:      *dbPassword,
 	}
 }
