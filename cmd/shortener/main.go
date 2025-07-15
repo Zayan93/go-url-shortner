@@ -29,29 +29,40 @@ func main() {
 	var storage store.URLStorage
 	var sqlStorage store.SQLPinger
 
+	// Попытка PostgreSQL
 	if cfg.DatabaseDSN != "" {
 		db, err := sql.Open("pgx", cfg.DatabaseDSN)
-		if err != nil {
-			log.Fatalf("failed to connect to database: %v", err)
+		if err == nil {
+			if err = db.Ping(); err == nil {
+				psqlStorage, err := store.NewSQLStorage(db)
+				if err == nil {
+					logger.Log.Info("Connected to PSQL server")
+					storage = psqlStorage
+					sqlStorage = psqlStorage
+				}
+			}
 		}
-		defer db.Close()
-		logger.Log.Info("Connected to PSQL server")
-		psqlStorage, err := store.NewSQLStorage(db)
-		if err != nil {
-			log.Fatalf("failed to initialize postgres storage: %v", err)
-		}
-		storage = psqlStorage
-		sqlStorage = psqlStorage
-	} else if cfg.FileStoragePath != "" {
+	}
+
+	// Если storage не выбран — пробуем файл
+	if storage == nil && cfg.FileStoragePath != "" {
 		fileStorage, err := store.NewFileStorage(cfg.FileStoragePath)
-		if err != nil {
-			log.Fatalf("failed to initialize file storage: %v", err)
+		if err == nil {
+			logger.Log.Info("Connected to file as storage")
+			storage = fileStorage
+			sqlStorage = nil
 		}
-		storage = fileStorage
-		sqlStorage = nil
-	} else {
+	}
+
+	// Если всё ещё не выбран — память
+	if storage == nil {
+		logger.Log.Info("Connected to InMemory as storage")
 		storage = store.NewInMemoryStorage()
 		sqlStorage = nil
+	}
+
+	if storage == nil {
+		log.Fatalf("failed to initialize any storage backend")
 	}
 
 	// Baseurl передаю через dependency injection в хендлеры
