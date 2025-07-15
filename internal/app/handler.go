@@ -178,7 +178,7 @@ func (h *Handler) PostShortenBatch(res http.ResponseWriter, req *http.Request) {
 	}
 
 	response := make([]BatchResponseItem, 0, len(batch))
-	for id, _ := range pairs {
+	for id := range pairs {
 		response = append(response, BatchResponseItem{
 			CorrelationID: idToCorrelation[id],
 			ShortURL:      fmt.Sprintf("%s/%s", h.BaseURL, id),
