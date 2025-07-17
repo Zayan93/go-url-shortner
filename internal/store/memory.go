@@ -38,3 +38,14 @@ func (s *InMemoryStorage) StoreBatch(pairs map[string]string) error {
 	}
 	return nil
 }
+
+func (s *InMemoryStorage) GetShortIDByOriginalURL(url string) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for id, storedURL := range s.store {
+		if storedURL == url {
+			return id, true
+		}
+	}
+	return "", false
+}

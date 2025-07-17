@@ -19,7 +19,7 @@ func New() *Config {
 	defaultBaseURL := "http://localhost:8080"
 	defaultLogLevel := "info"
 	defaultFileStoragePath := "./storage.txt"
-	defaultDBDSN := "host=localhost user=postgres password=w111w111w dbname=videos sslmode=disable"
+	defaultDBDSN := "host=localhost user=postgres password=fmx274TQVw111w111w dbname=videos sslmode=disable"
 
 	envAddress := os.Getenv("SERVER_ADDRESS")
 	envBaseURL := os.Getenv("BASE_URL")

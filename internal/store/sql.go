@@ -56,6 +56,19 @@ func (s *SQLStorage) Get(id string) (string, bool) {
 	return url, true
 }
 
+// GetShortIDByOriginalURL returns the short_id for a given original_url, if it exists.
+func (s *SQLStorage) GetShortIDByOriginalURL(url string) (string, bool) {
+	var shortID string
+	err := s.DB.QueryRow(`SELECT short_id FROM short_urls WHERE original_url = $1`, url).Scan(&shortID)
+	if err == sql.ErrNoRows {
+		return "", false
+	}
+	if err != nil {
+		return "", false
+	}
+	return shortID, true
+}
+
 // Ping проверяет соединение с базой данных
 func (s *SQLStorage) Ping() error {
 	return s.DB.Ping()

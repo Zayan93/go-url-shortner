@@ -10,6 +10,7 @@ type URLStorage interface {
 	Store(id, url string) error
 	Get(id string) (string, bool)
 	StoreBatch(pairs map[string]string) error
+	GetShortIDByOriginalURL(url string) (string, bool)
 }
 
 type Event struct {

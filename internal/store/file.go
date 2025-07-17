@@ -76,3 +76,28 @@ func (s *FileStorage) StoreBatch(pairs map[string]string) error {
 	}
 	return nil
 }
+
+func (s *FileStorage) GetShortIDByOriginalURL(url string) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	consumer, err := NewConsumer(s.filename)
+	if err != nil {
+		return "", false
+	}
+	defer consumer.Close()
+
+	for {
+		event, err := consumer.ReadEvent()
+		if err != nil {
+			return "", false
+		}
+		if event == nil {
+			break
+		}
+		if event.OriginalURL == url {
+			return event.ShortURL, true
+		}
+	}
+	return "", false
+}

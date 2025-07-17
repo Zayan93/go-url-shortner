@@ -10,6 +10,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	// Add these for Postgres error handling
+	"github.com/jackc/pgerrcode"
+	"github.com/lib/pq"
 )
 
 func NewHandler(s store.URLStorage, baseURL string, sqlStorage store.SQLPinger) *Handler {
@@ -86,9 +90,33 @@ func (h *Handler) PostShorten(res http.ResponseWriter, req *http.Request) {
 
 		originalURL := requestBody.OriginalURL
 
+		// проверяем есть ли уже такой URL в базе
+		if shortID, found := h.Storage.GetShortIDByOriginalURL(originalURL); found {
+			shortURL := fmt.Sprintf("%s/%s", h.BaseURL, shortID)
+			response := URLResponse{ShortURL: shortURL}
+			res.Header().Set("Content-Type", "application/json")
+			res.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(res).Encode(response)
+			return
+		}
+
 		id := generateID()
 
-		if err := h.Storage.Store(id, originalURL); err != nil {
+		err = h.Storage.Store(id, originalURL)
+		if err != nil {
+			// проверяем Постгрю
+			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == pgerrcode.UniqueViolation {
+				if sqlStorage, ok := h.Storage.(interface{ GetShortIDByOriginalURL(string) (string, bool) }); ok {
+					if shortID, found := sqlStorage.GetShortIDByOriginalURL(originalURL); found {
+						shortURL := fmt.Sprintf("%s/%s", h.BaseURL, shortID)
+						response := URLResponse{ShortURL: shortURL}
+						res.Header().Set("Content-Type", "application/json")
+						res.WriteHeader(http.StatusConflict)
+						_ = json.NewEncoder(res).Encode(response)
+						return
+					}
+				}
+			}
 			http.Error(res, "failed to store url", http.StatusInternalServerError)
 			return
 		}
@@ -117,9 +145,34 @@ func (h *Handler) PostPage(res http.ResponseWriter, req *http.Request) {
 		defer req.Body.Close()
 
 		originalURL := strings.TrimSpace(string(data))
+
+		// Check for existing original URL for non-SQL storage
+		if shortID, found := h.Storage.GetShortIDByOriginalURL(originalURL); found {
+			shortURL := fmt.Sprintf("%s/%s", h.BaseURL, shortID)
+			res.Header().Set("Content-Type", "text/plain")
+			res.Header().Set("Content-Length", strconv.Itoa(len(shortURL)))
+			res.WriteHeader(http.StatusConflict)
+			res.Write([]byte(shortURL))
+			return
+		}
+
 		id := generateID()
 
-		if err := h.Storage.Store(id, originalURL); err != nil {
+		err := h.Storage.Store(id, originalURL)
+		if err != nil {
+			// Check for Postgres unique violation
+			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == pgerrcode.UniqueViolation {
+				if sqlStorage, ok := h.Storage.(interface{ GetShortIDByOriginalURL(string) (string, bool) }); ok {
+					if shortID, found := sqlStorage.GetShortIDByOriginalURL(originalURL); found {
+						shortURL := fmt.Sprintf("%s/%s", h.BaseURL, shortID)
+						res.Header().Set("Content-Type", "text/plain")
+						res.Header().Set("Content-Length", strconv.Itoa(len(shortURL)))
+						res.WriteHeader(http.StatusConflict)
+						res.Write([]byte(shortURL))
+						return
+					}
+				}
+			}
 			http.Error(res, "failed to store url", http.StatusInternalServerError)
 			return
 		}
