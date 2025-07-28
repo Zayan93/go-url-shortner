@@ -7,16 +7,18 @@ import (
 )
 
 type URLStorage interface {
-	Store(id, url string) error
+	Store(id, url string, userID string) error
 	Get(id string) (string, bool)
-	StoreBatch(pairs map[string]string) error
+	StoreBatch(pairs map[string]string, userID string) error
 	GetShortIDByOriginalURL(url string) (string, bool)
+	GetURLsByUser(userID string) ([]URLPair, error)
 }
 
 type Event struct {
 	UUID        uint   `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	UserID      string `json:"user_id"`
 }
 
 type BatchEvent struct {

@@ -2,16 +2,17 @@ package main
 
 import (
 	"database/sql"
-	"github.com/go-chi/chi/v5"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"go-url-shortner/internal/app"
 	"go-url-shortner/internal/compressor"
 	"go-url-shortner/internal/config"
 	"go-url-shortner/internal/logger"
 	"go-url-shortner/internal/store"
-	"go.uber.org/zap"
 	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -77,6 +78,7 @@ func main() {
 	r.Post("/api/shorten/batch", handler.PostShortenBatch)
 	r.Get("/{id}", handler.GetPage)
 	r.Get("/ping", handler.ServePing)
+	r.Get("/api/user/urls", handler.GetUserURLs)
 
 	logger.Log.Info("Running server", zap.String("address", cfg.Address))
 

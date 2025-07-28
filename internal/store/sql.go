@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"go-url-shortner/internal/logger"
 )
 
 // SQLStorage реализует интерфейс для работы с SQL-базой
@@ -38,8 +39,9 @@ func (s *SQLStorage) initTable() error {
 }
 
 // Store сохраняет сокращённый URL
-func (s *SQLStorage) Store(id, url string) error {
-	_, err := s.DB.Exec(`INSERT INTO short_urls (short_id, original_url) VALUES ($1, $2) ON CONFLICT (short_id) DO NOTHING`, id, url)
+func (s *SQLStorage) Store(id, url string, userID string) error {
+	logger.Log.Info("SQL storage store`")
+	_, err := s.DB.Exec(`INSERT INTO short_urls (short_id, original_url, user_id) VALUES ($1, $2, $3) ON CONFLICT (short_id) DO NOTHING`, id, url, userID)
 	return err
 }
 
@@ -75,12 +77,12 @@ func (s *SQLStorage) Ping() error {
 }
 
 // StoreBatch сохраняет множество сокращённых URL в рамках одной транзакции
-func (s *SQLStorage) StoreBatch(pairs map[string]string) error {
+func (s *SQLStorage) StoreBatch(pairs map[string]string, userID string) error {
 	tx, err := s.DB.Begin()
 	if err != nil {
 		return err
 	}
-	stmt, err := tx.Prepare(`INSERT INTO short_urls (short_id, original_url) VALUES ($1, $2) ON CONFLICT (short_id) DO NOTHING`)
+	stmt, err := tx.Prepare(`INSERT INTO short_urls (short_id, original_url, user_id) VALUES ($1, $2, $3) ON CONFLICT (short_id) DO NOTHING`)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -93,4 +95,30 @@ func (s *SQLStorage) StoreBatch(pairs map[string]string) error {
 		}
 	}
 	return tx.Commit()
+}
+
+func (s *SQLStorage) GetURLsByUser(userID string) ([]URLPair, error) {
+	rows, err := s.DB.Query(`SELECT short_id, original_url FROM short_urls WHERE user_id = $1 ORDER BY created_at DESC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pairs []URLPair
+	for rows.Next() {
+		var shortID, originalURL string
+		if err := rows.Scan(&shortID, &originalURL); err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, URLPair{
+			ShortURL:    shortID,
+			OriginalURL: originalURL,
+		})
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return pairs, nil
 }
