@@ -92,11 +92,6 @@ func (h *Handler) GetPage(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "bad request", http.StatusBadRequest)
 		return
 	}
-	_, cookieErr := req.Cookie("user_id")
-	if cookieErr != nil {
-		http.Error(res, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
 
 	id := strings.TrimPrefix(req.URL.Path, "/")
 	if id == "" {
