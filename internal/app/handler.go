@@ -306,25 +306,28 @@ func (h *Handler) GetUserURLs(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Получаем ID пользователя из куки
-	cookie, err := req.Cookie("user_id")
+	userID, err := h.ensureUserID(res, req)
 	if err != nil {
-		// Если кука не содержит ID пользователя, возвращаем 401
-		http.Error(res, "unauthorized", http.StatusUnauthorized)
+		logger.Log.Error("Failed to ensure user ID", zap.Error(err))
+		http.Error(res, "failed to ensure user id", http.StatusInternalServerError)
 		return
 	}
 
-	userID := cookie.Value
+	logger.Log.Info("Getting URLs for user", zap.String("userID", userID))
 
 	// Получаем все URL пользователя
 	urls, err := h.Storage.GetURLsByUser(userID)
 	if err != nil {
+		logger.Log.Error("Failed to get user URLs", zap.Error(err))
 		http.Error(res, "failed to get user urls", http.StatusInternalServerError)
 		return
 	}
 
+	logger.Log.Info("Found URLs for user", zap.String("userID", userID), zap.Int("count", len(urls)))
+
 	// Если у пользователя нет URL, возвращаем 204
 	if len(urls) == 0 {
+		logger.Log.Info("No URLs found for user, returning 204", zap.String("userID", userID))
 		res.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -333,6 +336,7 @@ func (h *Handler) GetUserURLs(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(res).Encode(urls); err != nil {
+		logger.Log.Error("Failed to encode response", zap.Error(err))
 		http.Error(res, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
