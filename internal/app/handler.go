@@ -70,6 +70,7 @@ func (h *Handler) ensureUserID(res http.ResponseWriter, req *http.Request) (stri
 	if err != nil {
 		// Куки нет, создаем новую
 		userID := generateUserID()
+		logger.Log.Info("Creating new user ID", zap.String("userID", userID))
 		cookie := &http.Cookie{
 			Name:     "user_id",
 			Value:    userID,
@@ -83,6 +84,7 @@ func (h *Handler) ensureUserID(res http.ResponseWriter, req *http.Request) (stri
 	}
 
 	// Кука есть, возвращаем существующий ID
+	logger.Log.Info("Using existing user ID", zap.String("userID", cookie.Value))
 	return cookie.Value, nil
 }
 
@@ -332,10 +334,19 @@ func (h *Handler) GetUserURLs(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Преобразуем данные для ответа
+	response := make([]store.URLPair, len(urls))
+	for i, url := range urls {
+		response[i] = store.URLPair{
+			ShortURL:    fmt.Sprintf("%s/%s", h.BaseURL, url.ShortURL),
+			OriginalURL: url.OriginalURL,
+		}
+	}
+
 	// Возвращаем список URL в формате JSON
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(res).Encode(urls); err != nil {
+	if err := json.NewEncoder(res).Encode(response); err != nil {
 		logger.Log.Error("Failed to encode response", zap.Error(err))
 		http.Error(res, "failed to encode response", http.StatusInternalServerError)
 		return

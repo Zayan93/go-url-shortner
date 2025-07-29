@@ -1,12 +1,15 @@
 package store
 
 import (
+	"go-url-shortner/internal/logger"
 	"sync"
+
+	"go.uber.org/zap"
 )
 
 type URLPair struct {
-	ShortURL    string
-	OriginalURL string
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }
 
 type InMemoryStorage struct {
@@ -65,7 +68,14 @@ func (s *InMemoryStorage) GetURLsByUser(userID string) ([]URLPair, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	urls := make([]URLPair, 0, len(s.storeWUser[userID]))
-	urls = append(urls, s.storeWUser[userID]...)
-	return urls, nil
+	urls, exists := s.storeWUser[userID]
+	if !exists {
+		logger.Log.Info("No URLs found for user in memory storage", zap.String("userID", userID))
+		return []URLPair{}, nil
+	}
+
+	logger.Log.Info("Found URLs for user in memory storage", zap.String("userID", userID), zap.Int("count", len(urls)))
+	result := make([]URLPair, 0, len(urls))
+	result = append(result, urls...)
+	return result, nil
 }

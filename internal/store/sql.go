@@ -112,6 +112,7 @@ func (s *SQLStorage) StoreBatch(pairs map[string]string, userID string) error {
 func (s *SQLStorage) GetURLsByUser(userID string) ([]URLPair, error) {
 	rows, err := s.DB.Query(`SELECT short_id, original_url FROM short_urls WHERE user_id = $1 ORDER BY created_at DESC`, userID)
 	if err != nil {
+		logger.Log.Error("Failed to query user URLs", zap.Error(err))
 		return nil, err
 	}
 	defer rows.Close()
@@ -120,6 +121,7 @@ func (s *SQLStorage) GetURLsByUser(userID string) ([]URLPair, error) {
 	for rows.Next() {
 		var shortID, originalURL string
 		if err := rows.Scan(&shortID, &originalURL); err != nil {
+			logger.Log.Error("Failed to scan row", zap.Error(err))
 			return nil, err
 		}
 		pairs = append(pairs, URLPair{
@@ -129,8 +131,10 @@ func (s *SQLStorage) GetURLsByUser(userID string) ([]URLPair, error) {
 	}
 
 	if err = rows.Err(); err != nil {
+		logger.Log.Error("Error iterating rows", zap.Error(err))
 		return nil, err
 	}
 
+	logger.Log.Info("Found URLs for user in SQL storage", zap.String("userID", userID), zap.Int("count", len(pairs)))
 	return pairs, nil
 }
