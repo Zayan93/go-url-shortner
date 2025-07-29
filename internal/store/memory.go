@@ -10,16 +10,17 @@ type URLPair struct {
 }
 
 type InMemoryStorage struct {
-	store           map[string]string
-	store_with_user map[string][]URLPair
-	mu              sync.RWMutex
+	store      map[string]string
+	storeWUser map[string][]URLPair
+	mu         sync.RWMutex
 }
 
 var _ URLStorage = (*InMemoryStorage)(nil)
 
 func NewInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{
-		store: make(map[string]string),
+		store:      make(map[string]string),
+		storeWUser: make(map[string][]URLPair),
 	}
 }
 
@@ -27,7 +28,7 @@ func (s *InMemoryStorage) Store(id, url string, userID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.store[id] = url
-	s.store_with_user[userID] = append(s.store_with_user[userID], URLPair{ShortURL: id, OriginalURL: url})
+	s.storeWUser[userID] = append(s.storeWUser[userID], URLPair{ShortURL: id, OriginalURL: url})
 	return nil
 }
 
@@ -44,7 +45,7 @@ func (s *InMemoryStorage) StoreBatch(pairs map[string]string, userID string) err
 	defer s.mu.Unlock()
 	for id, url := range pairs {
 		s.store[id] = url
-		s.store_with_user[userID] = append(s.store_with_user[userID], URLPair{ShortURL: id, OriginalURL: url})
+		s.storeWUser[userID] = append(s.storeWUser[userID], URLPair{ShortURL: id, OriginalURL: url})
 	}
 	return nil
 }
@@ -64,9 +65,7 @@ func (s *InMemoryStorage) GetURLsByUser(userID string) ([]URLPair, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	urls := make([]URLPair, 0, len(s.store_with_user))
-	for _, url := range s.store_with_user[userID] {
-		urls = append(urls, url)
-	}
+	urls := make([]URLPair, 0, len(s.storeWUser[userID]))
+	urls = append(urls, s.storeWUser[userID]...)
 	return urls, nil
 }

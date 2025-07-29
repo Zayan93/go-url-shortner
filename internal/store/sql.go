@@ -3,6 +3,8 @@ package store
 import (
 	"database/sql"
 	"go-url-shortner/internal/logger"
+
+	"go.uber.org/zap"
 )
 
 // SQLStorage реализует интерфейс для работы с SQL-базой
@@ -32,16 +34,26 @@ func (s *SQLStorage) initTable() error {
 		CREATE TABLE IF NOT EXISTS short_urls (
 			id SERIAL PRIMARY KEY,
 			short_id VARCHAR(255) UNIQUE NOT NULL,
-			original_url TEXT NOT NULL
+			original_url TEXT NOT NULL,
+			user_id VARCHAR(255) NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 	`)
+	if err != nil {
+		logger.Log.Error("Failed to create table", zap.Error(err))
+	} else {
+		logger.Log.Info("Table short_urls created or already exists")
+	}
 	return err
 }
 
 // Store сохраняет сокращённый URL
 func (s *SQLStorage) Store(id, url string, userID string) error {
-	logger.Log.Info("SQL storage store`")
+	logger.Log.Info("SQL storage store")
 	_, err := s.DB.Exec(`INSERT INTO short_urls (short_id, original_url, user_id) VALUES ($1, $2, $3) ON CONFLICT (short_id) DO NOTHING`, id, url, userID)
+	if err != nil {
+		logger.Log.Error("Failed to store URL in SQL", zap.Error(err))
+	}
 	return err
 }
 
@@ -89,7 +101,7 @@ func (s *SQLStorage) StoreBatch(pairs map[string]string, userID string) error {
 	}
 	defer stmt.Close()
 	for id, url := range pairs {
-		if _, err := stmt.Exec(id, url); err != nil {
+		if _, err := stmt.Exec(id, url, userID); err != nil {
 			tx.Rollback()
 			return err
 		}

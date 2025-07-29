@@ -33,10 +33,16 @@ func main() {
 	// Попытка PostgreSQL
 	if cfg.DatabaseDSN != "" {
 		db, err := sql.Open("pgx", cfg.DatabaseDSN)
-		if err == nil {
-			if err = db.Ping(); err == nil {
+		if err != nil {
+			logger.Log.Error("Failed to open database connection", zap.Error(err))
+		} else {
+			if err = db.Ping(); err != nil {
+				logger.Log.Error("Failed to ping database", zap.Error(err))
+			} else {
 				psqlStorage, err := store.NewSQLStorage(db)
-				if err == nil {
+				if err != nil {
+					logger.Log.Error("Failed to initialize SQL storage", zap.Error(err))
+				} else {
 					logger.Log.Info("Connected to PSQL server")
 					storage = psqlStorage
 					sqlStorage = psqlStorage
