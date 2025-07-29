@@ -331,7 +331,7 @@ func (h *Handler) GetUserURLs(res http.ResponseWriter, req *http.Request) {
 	if len(urls) == 0 {
 		logger.Log.Info("No URLs found for user, returning 204", zap.String("userID", userID))
 		res.WriteHeader(http.StatusNoContent)
-		return
+		http.Error(res, "No URLs found for user", http.StatusNoContent)
 	}
 
 	logger.Log.Info("URLs found, returning 200", zap.String("userID", userID), zap.Int("count", len(urls)))
