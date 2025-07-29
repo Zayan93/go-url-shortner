@@ -334,6 +334,11 @@ func (h *Handler) GetUserURLs(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	logger.Log.Info("URLs found, returning 200", zap.String("userID", userID), zap.Int("count", len(urls)))
+	for i, url := range urls {
+		logger.Log.Info("URL found", zap.Int("index", i), zap.String("shortURL", url.ShortURL), zap.String("originalURL", url.OriginalURL))
+	}
+
 	// Преобразуем данные для ответа
 	response := make([]store.URLPair, len(urls))
 	for i, url := range urls {
