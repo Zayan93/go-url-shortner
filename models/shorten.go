@@ -22,3 +22,6 @@ type BatchShortenResponse struct {
 	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
 }
+
+// DeleteURLsRequest представляет запрос на удаление URL
+type DeleteURLsRequest []string
