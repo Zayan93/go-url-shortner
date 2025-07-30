@@ -2,7 +2,9 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
 	"go-url-shortner/internal/logger"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -36,6 +38,7 @@ func (s *SQLStorage) initTable() error {
 			short_id VARCHAR(255) UNIQUE NOT NULL,
 			original_url TEXT NOT NULL,
 			user_id VARCHAR(255) NOT NULL,
+			is_deleted BOOLEAN DEFAULT FALSE,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 	`)
@@ -60,11 +63,16 @@ func (s *SQLStorage) Store(id, url string, userID string) error {
 // Get возвращает оригинальный URL по short_id
 func (s *SQLStorage) Get(id string) (string, bool) {
 	var url string
-	err := s.DB.QueryRow(`SELECT original_url FROM short_urls WHERE short_id = $1`, id).Scan(&url)
+	var isDeleted bool
+	err := s.DB.QueryRow(`SELECT original_url, is_deleted FROM short_urls WHERE short_id = $1`, id).Scan(&url, &isDeleted)
 	if err == sql.ErrNoRows {
 		return "", false
 	}
 	if err != nil {
+		return "", false
+	}
+	// Если URL помечен как удаленный, возвращаем false
+	if isDeleted {
 		return "", false
 	}
 	return url, true
@@ -110,7 +118,7 @@ func (s *SQLStorage) StoreBatch(pairs map[string]string, userID string) error {
 }
 
 func (s *SQLStorage) GetURLsByUser(userID string) ([]URLPair, error) {
-	rows, err := s.DB.Query(`SELECT short_id, original_url FROM short_urls WHERE user_id = $1 ORDER BY created_at DESC`, userID)
+	rows, err := s.DB.Query(`SELECT short_id, original_url FROM short_urls WHERE user_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC`, userID)
 	if err != nil {
 		logger.Log.Error("Failed to query user URLs", zap.Error(err))
 		return nil, err
@@ -137,4 +145,58 @@ func (s *SQLStorage) GetURLsByUser(userID string) ([]URLPair, error) {
 
 	logger.Log.Info("Found URLs for user in SQL storage", zap.String("userID", userID), zap.Int("count", len(pairs)))
 	return pairs, nil
+}
+
+// DeleteURLs помечает URL как удаленные для указанного пользователя
+func (s *SQLStorage) DeleteURLs(shortIDs []string, userID string) error {
+	if len(shortIDs) == 0 {
+		return nil
+	}
+
+	// Создаем плейсхолдеры для IN запроса
+	placeholders := make([]string, len(shortIDs))
+	args := make([]interface{}, len(shortIDs)+1)
+
+	for i, id := range shortIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+	args[len(shortIDs)] = userID
+
+	query := fmt.Sprintf(`
+		UPDATE short_urls 
+		SET is_deleted = TRUE 
+		WHERE short_id IN (%s) AND user_id = $%d
+	`, strings.Join(placeholders, ","), len(shortIDs)+1)
+
+	_, err := s.DB.Exec(query, args...)
+	if err != nil {
+		logger.Log.Error("Failed to delete URLs", zap.Error(err))
+		return err
+	}
+
+	logger.Log.Info("Successfully marked URLs as deleted", zap.Strings("shortIDs", shortIDs), zap.String("userID", userID))
+	return nil
+}
+
+// GetWithDeletedFlag возвращает URL с информацией о том, удален ли он
+func (s *SQLStorage) GetWithDeletedFlag(id string) (string, bool, bool) {
+	var url string
+	var isDeleted bool
+
+	err := s.DB.QueryRow(`
+		SELECT original_url, is_deleted 
+		FROM short_urls 
+		WHERE short_id = $1
+	`, id).Scan(&url, &isDeleted)
+
+	if err == sql.ErrNoRows {
+		return "", false, false
+	}
+	if err != nil {
+		logger.Log.Error("Failed to get URL with deleted flag", zap.Error(err))
+		return "", false, false
+	}
+
+	return url, true, isDeleted
 }

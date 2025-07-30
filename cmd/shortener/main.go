@@ -85,6 +85,7 @@ func main() {
 	r.Get("/{id}", handler.GetPage)
 	r.Get("/ping", handler.ServePing)
 	r.Get("/api/user/urls", handler.GetUserURLs)
+	r.Delete("/api/user/urls", handler.DeleteUserURLs)
 
 	logger.Log.Info("Running server", zap.String("address", cfg.Address))
 

@@ -12,6 +12,9 @@ type URLStorage interface {
 	StoreBatch(pairs map[string]string, userID string) error
 	GetShortIDByOriginalURL(url string) (string, bool)
 	GetURLsByUser(userID string) ([]URLPair, error)
+	// Новые методы для работы с удаленными URL
+	DeleteURLs(shortIDs []string, userID string) error
+	GetWithDeletedFlag(id string) (string, bool, bool) // возвращает URL, существует ли, удален ли
 }
 
 type Event struct {
@@ -19,6 +22,7 @@ type Event struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 	UserID      string `json:"user_id"`
+	DeletedFlag bool   `json:"deleted_flag"`
 }
 
 type BatchEvent struct {

@@ -101,6 +101,25 @@ func (h *Handler) GetPage(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Используем новый метод для получения URL с информацией об удалении
+	if storage, ok := h.Storage.(interface {
+		GetWithDeletedFlag(string) (string, bool, bool)
+	}); ok {
+		originalURL, exists, isDeleted := storage.GetWithDeletedFlag(id)
+		if !exists {
+			http.Error(res, "not found", http.StatusBadRequest)
+			return
+		}
+		if isDeleted {
+			http.Error(res, "url deleted", http.StatusGone)
+			return
+		}
+		res.Header().Del("Content-Encoding")
+		http.Redirect(res, req, originalURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Fallback для хранилищ, которые не поддерживают GetWithDeletedFlag
 	originalURL, found := h.Storage.Get(id)
 	if !found {
 		http.Error(res, "not found", http.StatusBadRequest)
@@ -356,4 +375,41 @@ func (h *Handler) GetUserURLs(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *Handler) DeleteUserURLs(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodDelete {
+		http.Error(res, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, err := h.ensureUserID(res, req)
+	if err != nil {
+		logger.Log.Error("Failed to ensure user ID", zap.Error(err))
+		http.Error(res, "failed to ensure user id", http.StatusInternalServerError)
+		return
+	}
+
+	var shortIDs []string
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&shortIDs); err != nil {
+		http.Error(res, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(shortIDs) == 0 {
+		http.Error(res, "empty request", http.StatusBadRequest)
+		return
+	}
+
+	// Анонимную функцию для удаления URL сделали
+	go func() {
+		if err := h.Storage.DeleteURLs(shortIDs, userID); err != nil {
+			logger.Log.Error("Failed to delete URLs", zap.Error(err), zap.Strings("shortIDs", shortIDs), zap.String("userID", userID))
+		} else {
+			logger.Log.Info("Successfully deleted URLs", zap.Strings("shortIDs", shortIDs), zap.String("userID", userID))
+		}
+	}()
+
+	res.WriteHeader(http.StatusAccepted)
 }
